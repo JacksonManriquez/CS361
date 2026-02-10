@@ -28,8 +28,9 @@ class Player(pygame.sprite.Sprite):
             img = pygame.image.load(os.path.join(folder, file)).convert_alpha()
             frames.append(img)
         return frames
-
+    #movement
     def update(self, keys):
+        self.prev_rect = self.rect.copy()
         moving = False
 
         if keys[pygame.K_a]:
@@ -67,3 +68,8 @@ class Player(pygame.sprite.Sprite):
         self.image = image
         #Scales the sprite to be bigger
         self.image = pygame.transform.scale(self.image, (64, 64))
+    
+    def get_interaction_rect(self):
+        interaction_rect = self.rect.copy()
+        interaction_rect.inflate_ip(20, 20)  # small interaction radius
+        return interaction_rect
