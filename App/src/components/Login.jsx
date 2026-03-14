@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const Login = ({ onLogin }) => {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -9,12 +9,109 @@ const Login = ({ onLogin }) => {
   });
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passwordValidation, setPasswordValidation] = useState({ status: '', message: '' });
+  const [passwordTimeout, setPasswordTimeout] = useState(null);
+
+  // Debounced password validation
+  const validatePassword = useCallback(async (password) => {
+    if (!password || password.length < 3) {
+      setPasswordValidation({ status: '', message: '' });
+      return;
+    }
+
+    try {
+      const response = await fetch('/pass', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          password: password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // zxcvbn returns a score from 0-4
+        const score = data.score;
+        let status, message;
+
+        switch (score) {
+          case 0:
+            status = 'very-weak';
+            message = 'Very weak - easily guessable';
+            break;
+          case 1:
+            status = 'weak';
+            message = 'Weak - very guessable';
+            break;
+          case 2:
+            status = 'fair';
+            message = 'Fair - somewhat guessable';
+            break;
+          case 3:
+            status = 'good';
+            message = 'Good - safely unguessable';
+            break;
+          case 4:
+            status = 'strong';
+            message = 'Strong - very unguessable';
+            break;
+          default:
+            status = 'unknown';
+            message = 'Password strength: Unknown';
+        }
+
+        setPasswordValidation({
+          score: score,
+          status: status,
+          message: message
+        });
+      } else {
+        setPasswordValidation({
+          status: 'error',
+          message: data.error_message || 'Password validation failed'
+        });
+      }
+    } catch (error) {
+      console.warn('Password validation error:', error);
+      setPasswordValidation({
+        status: 'error',
+        message: 'Unable to validate password'
+      });
+    }
+  }, [formData.client_id]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (passwordTimeout) {
+        clearTimeout(passwordTimeout);
+      }
+    };
+  }, [passwordTimeout]);
 
   const handleInputChange = (e) => {
+    const { name, value } = e.target;
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
+
+    // Handle password validation with debouncing
+    if (name === 'password' && isRegistering) {
+      if (passwordTimeout) {
+        clearTimeout(passwordTimeout);
+      }
+
+      const timeout = setTimeout(() => {
+        validatePassword(value);
+      }, 500); // 500ms delay after user stops typing
+
+      setPasswordTimeout(timeout);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -42,6 +139,33 @@ const Login = ({ onLogin }) => {
             client_id: formData.client_id,
             username: formData.username
           }));
+
+          // Call microservice on port 3002 with dummy data
+          try {
+            const microserviceResponse = await fetch('/email/send-email', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                event: 'user_login',
+                user_id: `${formData.client_id}_${formData.username}`,
+                email: formData.client_id,
+                subject: "Sign In Alert",
+                message: "You have successfully signed in.",
+              }),
+            });
+
+            if (microserviceResponse.ok) {
+              console.log('Microservice notification sent successfully');
+            } else {
+              console.warn('Microservice notification failed:', microserviceResponse.status);
+            }
+          } catch (error) {
+            console.warn('Failed to contact microservice:', error);
+            // Don't fail login if microservice is unavailable
+          }
+
           onLogin(formData);
         } else {
           // Switch to login mode after successful registration
@@ -96,6 +220,11 @@ const Login = ({ onLogin }) => {
               required
               placeholder="Enter your password"
             />
+            {isRegistering && passwordValidation.message && (
+              <div className={`password-validation ${passwordValidation.status}`}>
+                Score: {passwordValidation.score}/4 - {passwordValidation.message}
+              </div>
+            )}
           </div>
           {message && (
             <div className={`message ${message.includes('successful') ? 'success' : 'error'}`}>

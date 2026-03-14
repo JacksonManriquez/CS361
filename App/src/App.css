@@ -493,6 +493,44 @@
   border: 1px solid #f44336;
 }
 
+.password-validation {
+  padding: 8px;
+  border-radius: 4px;
+  margin-top: 5px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.password-validation.very-weak {
+  background: #ffebee;
+  color: #b71c1c;
+  border: 1px solid #d32f2f;
+}
+
+.password-validation.weak {
+  background: #fff3e0;
+  color: #e65100;
+  border: 1px solid #f57c00;
+}
+
+.password-validation.fair {
+  background: #fff8e1;
+  color: #f57c00;
+  border: 1px solid #ffb74d;
+}
+
+.password-validation.good {
+  background: #e8f5e8;
+  color: #2e7d32;
+  border: 1px solid #4caf50;
+}
+
+.password-validation.strong {
+  background: #e8f5e8;
+  color: #1b5e20;
+  border: 1px solid #2e7d32;
+}
+
 .login-form button[type="submit"] {
   width: 100%;
   padding: 12px;
